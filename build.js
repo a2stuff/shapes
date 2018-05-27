@@ -2,8 +2,13 @@ const $ = document.querySelector.bind(document);
 document.addEventListener('DOMContentLoaded', e => {
   $('#go').addEventListener('click', e => {
     const text = $('#src').value;
+
+    //console.log(vectorize(parse(split(text)[1])).map(n=>n.toString(2)));
+    //console.log(pack(vectorize(parse(split(text)[1]))).map(n=>n.toString(2)));
+    //return;
+
     const table = assemble(split(text).map(parse).map(vectorize).map(pack));
-    console.log(table);
+    //console.log(table);
 
     const blob = new Blob([table]);
 
@@ -111,24 +116,34 @@ function vectorize(shape) {
   return out;
 }
 
+function dump(vectors) {
+  return vectors.map(vec =>
+                     ['UP', 'RIGHT', 'DOWN', 'LEFT',
+                      'P-UP', 'P-RIGHT', 'P-DOWN', 'P-LEFT'][vec]);
+}
+
 // Input: sequence of numbers representing vector moves
 // Output: sequence of bytes with 1, 2 or 3 vectors packed in
 function pack(vectors) {
   const bytes = [];
   while (vectors.length) {
     let byte = vectors.shift();
+    //console.log('byte: ' + byte.toString(2));
 
     // Assumes that there are never sequential ups.
-    if ((vectors.length && vectors[0] !== 0) ||
+    if ((vectors.length && vectors[0]) ||
         (vectors.length > 1 && (vectors[1] & PLOT) === 0)) {
+      //console.log('appending: ' + vectors[0].toString(2));
       byte = byte | (vectors.shift() << 3);
 
-      if (vectors.length && (vectors[0] & PLOT) === 0) {
+      if (vectors.length && (vectors[0] & PLOT) === 0 && vectors[0]) {
+        //console.log('appending: ' + vectors[0].toString(2));
         byte = byte | (vectors.shift() << 6);
       }
     }
 
     if (byte === 0) throw Error('Invalid byte generated');
+    //console.log('final: ' + byte.toString(2));
     bytes.push(byte);
   }
   return bytes;
