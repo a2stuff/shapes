@@ -75,7 +75,7 @@ function parse(shape) {
 // up = 00, right = 01, down = 10, left = 11
 // 0xx = just move, 1xx = plot and move
 const UP = 0b00, RIGHT = 0b01, DOWN = 0b10, LEFT = 0b11;
-const PLOT = 0b100, MOVE = 0b000;
+const PLOT = 0b100, MOVE = 0b000, MASK = 0b11;
 
 // Input: {ox, oy, width, height, bits: [[0,1,...],...]}
 // Output: sequence of numbers representing vector moves
@@ -109,9 +109,23 @@ function vectorize(shape) {
     dir = -dir;
   }
 
-  // Trim trailing moves
+  // Optimization: trim trailing moves
   while ((out[out.length-1] & PLOT) === 0)
     out.length -= 1;
+
+  // Optimization: Compress left-up-right/right-up-left into just up
+  for (let i = 0; i < out.length - 2; ) {
+    if (out[i] === LEFT && out[i+1] === UP && out[i+2] === RIGHT)
+      out.splice(i, 3, UP);
+    else if (out[i] === (LEFT|PLOT) && out[i+1] === UP && out[i+2] === RIGHT)
+      out.splice(i, 3, UP|PLOT);
+    else if (out[i] === RIGHT && out[i+1] === UP && out[i+2] === LEFT)
+      out.splice(i, 3, UP);
+    else if (out[i] === (RIGHT|PLOT) && out[i+1] === UP && out[i+2] === LEFT)
+      out.splice(i, 3, UP|PLOT);
+    else
+      ++i;
+  }
 
   return out;
 }
@@ -130,7 +144,6 @@ function pack(vectors) {
     let byte = vectors.shift();
     //console.log('byte: ' + byte.toString(2));
 
-    // Assumes that there are never sequential ups.
     if ((vectors.length && vectors[0]) ||
         (vectors.length > 1 && (vectors[1] & PLOT) === 0)) {
       //console.log('appending: ' + vectors[0].toString(2));
@@ -142,7 +155,10 @@ function pack(vectors) {
       }
     }
 
-    if (byte === 0) throw Error('Invalid byte generated');
+    // Can occur c/o optimizations.
+    if (byte === 0)
+      byte = UP | (LEFT << 3) | (RIGHT << 6);
+
     //console.log('final: ' + byte.toString(2));
     bytes.push(byte);
   }
