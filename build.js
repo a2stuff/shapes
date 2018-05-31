@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', e => {
   $('#go').addEventListener('click', e => {
     const text = $('#src').value;
 
+    //console.log(dump(vectorize(parse(split(text)[3])))); return;
     //console.log(vectorize(parse(split(text)[1])).map(n=>n.toString(2)));
     //console.log(pack(vectorize(parse(split(text)[1]))).map(n=>n.toString(2)));
     //return;
@@ -85,10 +86,10 @@ function vectorize(shape) {
   // TODO: Optimize this algorithm!
 
   // Move to bottom-right
-  for (let x = shape.ox; x < shape.width - 1; ++x)
-    out.push(RIGHT);
   for (let y = shape.oy; y < shape.height - 1; ++y)
     out.push(DOWN);
+  for (let x = shape.ox; x < shape.width - 1; ++x)
+    out.push(RIGHT);
 
   // Start moving to left
   let dir = -1;
@@ -113,6 +114,23 @@ function vectorize(shape) {
   while ((out[out.length-1] & PLOT) === 0)
     out.length -= 1;
 
+   // Optimization: Compress left-right, right-left, down-up, or up-down
+  for (let i = 0; i < out.length - 1; ) {
+    if (out[i] === LEFT && out[i+1] === RIGHT)
+      out.splice(i, 2);
+    else if (out[i] === RIGHT && out[i+1] === LEFT)
+      out.splice(i, 2);
+    else if (out[i] === DOWN && out[i+1] === UP)
+      out.splice(i, 2);
+    else if (out[i] === UP && out[i+1] === DOWN)
+      out.splice(i, 2);
+    else {
+      ++i;
+      continue;
+    }
+    i = 0;
+  }
+
   // Optimization: Compress left-up-right/right-up-left into just up
   for (let i = 0; i < out.length - 2; ) {
     if (out[i] === LEFT && out[i+1] === UP && out[i+2] === RIGHT)
@@ -123,8 +141,11 @@ function vectorize(shape) {
       out.splice(i, 3, UP);
     else if (out[i] === (RIGHT|PLOT) && out[i+1] === UP && out[i+2] === LEFT)
       out.splice(i, 3, UP|PLOT);
-    else
+    else {
       ++i;
+      continue;
+    }
+    i = 0;
   }
 
   return out;
